@@ -9,6 +9,66 @@
     "description": "The heading you'd like to show above the image"
   },
   {
+    "name": "enabledTime",
+    "type": "boolean",
+    "label": "Habilitar tempo",
+    "importance": "low",
+    "default": false
+  },
+  {
+    "name": "startTime",
+    "type": "number",
+    "label": "Tempo de início",
+    "default": 0,
+    "optional": true,
+    "min": 0,
+    "decimals": 5,
+    "visibility": {
+      "conditions": [
+        {
+          "field": "enabledTime",
+          "operator": ":",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "deltaTime",
+    "type": "number",
+    "label": "Duração até o próximo quadro",
+    "default": 1,
+    "optional": true,
+    "min": 0.1,
+    "decimals": 5,
+    "visibility": {
+      "conditions": [
+        {
+          "field": "enabledTime",
+          "operator": ":",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "timeunit",
+    "type": "select",
+    "label": "Unidade de tempo dos quadros",
+    "importance": "medium",
+    "options": [
+      {
+        "value": "decisegundo",
+        "label": "Decisegundo (ds)"
+      },
+      {
+        "value": "segundo",
+        "label": "Segundo (s)"
+      }
+    ],
+    "default": "normal"
+  },
+  {
     "name": "items",
     "type": "list",
     "label": "Items",
@@ -32,11 +92,9 @@
         {
           "name": "image",
           "type": "library",
-          "label": "Image",
+          "label": "Item",
           "importance": "low",
-          "options": [
-            "H5P.Image 1.1"
-          ],
+          "options": ["H5P.Image 1.1", "H5P.OpenEndedQuestion 1.0", "H5P.Table 1.2"],
           "optional": false
         },
         {
@@ -54,8 +112,8 @@
           "widget": "html",
           "label": "Description",
           "optional": true,
-          "placeholder": "My image description ...",
-          "description": "Optional description for the image",
+          "placeholder": "My description ...",
+          "description": "Optional description",
           "enterMode": "p",
           "tags": [
             "strong",
@@ -69,17 +127,6 @@
             "a",
             "pre",
             "code"
-          ]
-        },
-        {
-          "name": "audio",
-          "type": "audio",
-          "importance": "low",
-          "label": "Audio",
-          "description": "Optional audio that plays when an image is shown.",
-          "optional": true,
-          "widgetExtensions": [
-            "AudioRecorder"
           ]
         }
       ]
