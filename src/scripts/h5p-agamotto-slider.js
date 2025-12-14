@@ -152,12 +152,10 @@ export default class Slider extends H5P.EventDispatcher {
       }
     });
     this.track.addEventListener('mousedown', (event) => {
-      event = event || window.event;
       this.sliderdown = true;
       this.setPosition(event, false);
     });
     this.thumb.addEventListener('mousedown', (event) => {
-      event = event || window.event;
       this.sliderdown = true;
       this.setPosition(event, false);
     });
@@ -174,7 +172,6 @@ export default class Slider extends H5P.EventDispatcher {
         return;
       }
 
-      event = event || window.event;
       event.preventDefault();
       event.stopPropagation();
       this.setPosition(event, false);
@@ -185,7 +182,6 @@ export default class Slider extends H5P.EventDispatcher {
         return;
       }
 
-      event = event || window.event;
       event.preventDefault();
       event.stopPropagation();
       this.setPosition(event, false);
@@ -231,10 +227,11 @@ export default class Slider extends H5P.EventDispatcher {
     this.thumb.addEventListener('keyup', (event) => {
       // Only trigger xAPI if the interaction started by a particular key has ended
       if (event.code === this.keydown) {
-        this.keydown = false;
         this.parent.xAPIInteracted();
         this.parent.xAPICompleted();
       }
+
+      this.keydown = false;
     });
   }
 
@@ -336,14 +333,13 @@ export default class Slider extends H5P.EventDispatcher {
    */
   handleKeyMove(event, nextItemId) {
     event.preventDefault();
-    this.keydown = event.which || event.keyCode;
+    this.keydown = event.code;
     nextItemId = Util.constrain(nextItemId, 0, this.params.size);
 
     this.setPosition(Util.project(nextItemId, 0, this.params.size, 0, this.getWidth()), true);
   }
 
   handleTouchMove(event) {
-    event = event || window.event;
     event.preventDefault();
     event.stopPropagation();
     this.setPosition(event, false);
