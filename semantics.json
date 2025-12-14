@@ -39,7 +39,7 @@
     "label": "Duração até o próximo quadro",
     "default": 1,
     "optional": true,
-    "min": 0.1,
+    "min": 0.0001,
     "decimals": 5,
     "visibility": {
       "conditions": [
@@ -58,15 +58,15 @@
     "importance": "medium",
     "options": [
       {
-        "value": "decisegundo",
+        "value": "ds",
         "label": "Decisegundo (ds)"
       },
       {
-        "value": "segundo",
+        "value": "s",
         "label": "Segundo (s)"
       }
     ],
-    "default": "normal"
+    "default": "ds"
   },
   {
     "name": "items",

@@ -285,3 +285,27 @@ $border-color_1: #999 transparent transparent transparent;
 .h5p-agamotto-transition {
 	transition: left .5s ease;
 }
+
+.h5p-agamotto-time-panel {
+	position: fixed;
+	top: 1rem;
+	right: 1rem;
+	padding: 0.25rem;
+	background: #1a1d1c;
+	border: 1px solid #ccc;
+	font-size: 0.8em;
+	border-radius: 4px;
+	z-index: 1000;
+	backdrop-filter: blur(10px);
+	min-width: 120px;
+}
+
+.h5p-agamotto-time-item {
+  	font-size: 1.3rem;
+	color: #999999;
+	padding: 2px 0 2px 0;
+	letter-spacing: 0.1em;
+	font-family: 'Roboto Mono', monospace;
+	text-align: center;
+	display: block;
+}

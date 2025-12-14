@@ -135,6 +135,11 @@ export default class Agamotto extends H5P.Question {
       // Remember current position (index)
       this.position = Math.round(index + (1 - opacity));
 
+      // Update time
+      if (this.slider && this.slider.updateTimeDisplay) {
+        this.slider.updateTimeDisplay(this.currentIndex);
+      }
+
       // Remember images that have been viewed
       if (this.completed === false) {
         // Images count as viewed as of 50 % visibility
@@ -344,6 +349,21 @@ export default class Agamotto extends H5P.Question {
           for (let i = 0; i <= this.maxItem; i++) {
             labelTexts[i] = this.params.items[i].labelText || '';
           }
+
+          const allContentTypes = [];
+          for (let i = 0; i <= this.maxItem; i++) {
+            const lib = this.params.items[i]?.image?.library || '';
+            if (lib.includes('H5P.Table')) {
+              allContentTypes[i] = 'table';
+            } else if (lib.includes('H5P.OpenEndedQuestion')) {
+              allContentTypes[i] = 'question';
+            } else if (lib.includes('H5P.Image')) {
+              allContentTypes[i] = 'image';
+            } else {
+              allContentTypes[i] = 'image';
+            }
+          }
+
           this.slider = new Slider({
             audio: this.hasAudio(),
             snap: this.params.behaviour.snap,
@@ -363,6 +383,13 @@ export default class Agamotto extends H5P.Question {
             },
             selector: this.selector,
             parent: this,
+            contentType: allContentTypes,
+            timeData: this.params.items.map(item => ({
+              start: this.params.startTime || 0,
+              delta: this.params.deltaTime || 0,
+              unit: this.params.timeunit || 'ds',
+              enabled: this.params.enabledTime || false
+            })),
           }, {
             onButtonFullscreenClicked: () => {
               this.handleFullscreenClicked();
