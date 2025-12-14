@@ -103,6 +103,8 @@ export default class Agamotto extends H5P.Question {
     // Store the completed state for xAPI triggering
     this.completed = false;
 
+    this.questionInstances = {};
+
     /**
      * Update images and descriptions.
      * @param {number} index Index of top image.
@@ -120,12 +122,60 @@ export default class Agamotto extends H5P.Question {
       }
 
       this.currentIndex = index;
+      const item = this.params.items[index];
+
+      if (this.imageContainer) {
+        this.imageContainer.style.display = 'none';
+      }
+
+      this.tableContainer.querySelectorAll('.h5p-agamotto-table')
+        .forEach(tbl => {
+          tbl.style.display = 'none';
+        });
+
+      this.wrapper.querySelectorAll('.h5p-agamotto-question')
+        .forEach(q => {
+          q.style.display = 'none';
+        });
+
+      if (item.image?.library?.includes('H5P.Table')) {
+
+        this.tableContainer.querySelectorAll('.h5p-agamotto-table')
+          .forEach(tbl => {
+            const itemIndex = parseInt(tbl.dataset.agamottoIndex, 10);
+            tbl.style.display = (itemIndex === index) ? 'block' : 'none';
+          });
+
+        if (this.slider && this.slider.updateTableContent) {
+          this.slider.updateTableContent(index, item);
+        }
+
+      } else if (item.image?.library?.includes('H5P.OpenEndedQuestion')) {
+        const questionContainers = this.wrapper.querySelectorAll('.h5p-agamotto-question');
+        
+        questionContainers.forEach(q => {
+          const itemIndex = parseInt(q.dataset.agamottoIndex, 10);
+          if (itemIndex === index) {
+            q.style.display = 'block';
+
+            if (!q.classList.contains('h5p-question-initialized')) {
+              const question = new H5P.OpenEndedQuestion(item.image.params);
+              const $container = H5P.jQuery(q);
+              question.attach($container);
+              this.questionInstances[index] = question;
+              q.classList.add('h5p-question-initialized');
+            }
+          }
+        });
+
+      } else if (item.image?.library?.includes('H5P.Image')) {
+        this.imageContainer.style.display = 'block';
+        // Update images
+        this.images.setImage(index, opacity);
+      }
 
       // Update audio
       this.setAudio(index, opacity);
-
-      // Update images
-      this.images.setImage(index, opacity);
 
       // Update descriptions
       if (this.hasDescription) {
@@ -289,7 +339,7 @@ export default class Agamotto extends H5P.Question {
       if (!this.params.items || this.maxItem < 1) {
         const warning = document.createElement('div');
         warning.classList.add('h5p-agamotto-warning');
-        warning.innerHTML = 'I really need at least two images :-)';
+        warning.innerHTML = 'I really need at least two items :-)';
         content.appendChild(warning);
         return content;
       }
@@ -306,23 +356,75 @@ export default class Agamotto extends H5P.Question {
         }
       });
 
+      this.tables = this.createTables(this.params.items);
+      this.tables.forEach((table) => {
+        if (table) {
+          content.append(table);
+        }
+      });
+
+      this.loadQuestion = (params) => {
+        return new Promise((resolve, reject) => {
+          try {
+            setTimeout(() => {
+              const container = document.createElement('div');
+              container.classList.add('h5p-agamotto-question');
+              container.dataset.agamottoIndex = params.index;
+              resolve(container);
+            }, 500);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      };
+
       /*
        * Load images first before DOM is created; will help to prevent layout
        * problems in some cases.
        */
-      const promises = [];
-      this.params.items.forEach((item) => {
-        promises.push(Images.loadImage(item.image, this.contentId));
+      
+      const loadPromises = this.params.items.map((item, index) => {
+        const lib = item.image?.library || '';
+        const params = item.image?.params || {};
+
+        if (lib.includes('H5P.Image') && params.file) {
+          try {
+            return Promise.resolve(Images.loadImage(item.image, this.contentId))
+              .then(img => ({ index, type: 'image', img, alt: params.alt, title: params.title }))
+              .catch(err => ({ index, type: 'image', error: err }));
+          }
+          catch (err) {
+            return Promise.resolve({ index, type: 'image', error: err });
+          }
+        }
+
+        if (lib.includes('H5P.Table') && typeof params.text === 'string') {
+          try {
+            return Promise.resolve(this.loadTable(params.text))
+              .then(html => ({ index, type: 'table', html }))
+              .catch(err => ({ index, type: 'table', error: err }));
+          }
+          catch (err) {
+            return Promise.resolve({ index, type: 'table', error: err });
+          }
+        }
+
+        if (lib.includes('H5P.OpenEndedQuestion') && typeof params.question === 'string') {
+          try {
+            return Promise.resolve(this.loadQuestion(params))
+              .then(questionEl => ({ index, type: 'question', questionEl }))
+              .catch(err => ({ index, type: 'question', error: err }));
+          }
+          catch (err) {
+            return Promise.resolve({ index, type: 'question', error: err });
+          }
+        }
+
+        return Promise.resolve({ index, type: 'none' });
       });
-      Promise
-        .all(promises)
-        .then((results) => {
-          this.images = results.map((item, index) => ({
-            img: item,
-            alt: this.params.items[index].image.params.alt,
-            title: this.params.items[index].image.params.title,
-            description: this.params.items[index].description,
-          }));
+
+      Promise.allSettled(loadPromises).then((settled) => {
+          this.spinner.hide();
 
           // We can hide the spinner now
           this.spinner.hide();
@@ -339,10 +441,56 @@ export default class Agamotto extends H5P.Question {
             this.wrapper.appendChild(this.title);
           }
 
-          // Images
-          this.images = new Images(this.images, this.params.behaviour.transparencyReplacementColor);
-          this.wrapper.appendChild(this.images.getDOM());
-          this.images.resize();
+          const imageData = [];
+
+          settled.forEach(s => {
+            if (s.status !== 'fulfilled') return;
+            const res = s.value;
+            const item = this.params.items[res.index];
+
+            if (res.type === 'image' && res.img && !res.error) {
+              const imgEl = res.img instanceof HTMLElement ? res.img : res.img?.img;
+              if (imgEl) {
+                imgEl.alt = item.image.params.alt || '';
+                imageData.push({
+                  img: imgEl,
+                  alt: item.image.params.alt,
+                  title: item.image.params.title,
+                  description: item.description
+                });
+              }
+            }
+
+            if (res.type === 'table' && res.html && !res.error) {
+              const tmp = document.createElement('div');
+              tmp.innerHTML = res.html;
+              
+              const tableEl = tmp.firstElementChild;
+
+              if (tableEl) {
+                tableEl.classList.add('h5p-agamotto-table');
+                tableEl.style.display = 'none';
+                tableEl.dataset.agamottoIndex = res.index;
+                this.wrapper.appendChild(tableEl);
+              }
+            }
+
+            if (res.type === 'question' && res.questionEl && !res.error) {
+              res.questionEl.style.display = 'none';
+              res.questionEl.dataset.agamottoIndex = res.index;
+              this.wrapper.appendChild(res.questionEl);
+            }
+
+            if (res.error) {
+              console.warn(`Item ${res.index} falhou:`, res.error);
+            }
+          });
+
+          if (imageData.length) {
+            this.images = new Images(imageData, this.params.behaviour.transparencyReplacementColor);
+            this.wrapper.appendChild(this.images.getDOM());
+            this.images.resize();
+          }
 
           // Slider
           const labelTexts = [];
@@ -391,13 +539,17 @@ export default class Agamotto extends H5P.Question {
               enabled: this.params.enabledTime || false
             })),
           }, {
-            onButtonFullscreenClicked: () => {
-              this.handleFullscreenClicked();
-            },
+            onButtonFullscreenClicked: () => this.handleFullscreenClicked(),
+
+            onUpdate: (index, opacity) => {
+              this.updateContent(index, opacity);
+            }
           });
 
           this.wrapper.appendChild(this.slider.getDOM());
           this.slider.resize();
+
+          this.tableContainer = this.wrapper;
 
           // Descriptions
           if (this.hasDescription) {
@@ -638,6 +790,61 @@ export default class Agamotto extends H5P.Question {
     };
 
     /**
+     * Create table elements from items.
+     * @param {*} items 
+     * @returns 
+     */
+    this.createTables = (items) => {
+      const tableElements = [];
+
+      items.forEach((item) => {
+        if (!item.text) {
+          tableElements.push(null);
+          return;
+        }
+
+        const table = new H5P.Table(item.tableData, this.contentId);
+
+        tableElements.push(table);
+      });
+
+      return tableElements;
+    };
+
+    this.loadTable = (tableHtml) => {
+      return new Promise((resolve, reject) => {
+        try {
+          setTimeout(() => {
+            resolve(tableHtml);
+          }, 500);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    };
+
+    /**
+     * Create question elements from items.
+     * @param {*} items 
+     * @returns 
+     */
+    this.createQuestions = (items) => {
+      const questionElements = [];
+
+      items.forEach((item) => {
+        if (!item.image?.library?.includes('H5P.OpenEndedQuestion')) {
+          questionElements.push(null);
+          return;
+        }
+
+        const question = new H5P.OpenEndedQuestion(item.image.params, this.contentId);
+        questionElements.push(question);
+      });
+
+      return questionElements;
+    };
+
+    /**
      * Detect whether there's at least one audio.
      * @returns {boolean} True, if content has audio.
      */
@@ -703,6 +910,22 @@ export default class Agamotto extends H5P.Question {
      */
     this.getTitle = () => {
       return H5P.createTitle((this.extras.metadata?.title) ? this.extras.metadata.title : 'Agamotto');
+    };
+
+    /**
+     * Update table content
+     * @param {*} index 
+     * @returns 
+     */
+    this.updateTableContent = (index) => {
+      if (!this.tableContainer) return;
+
+      const tables = this.tableContainer.querySelectorAll('.h5p-agamotto-table');
+      if (!tables.length) return;
+
+      tables.forEach((tbl, i) => {
+        tbl.style.display = (i === index) ? 'block' : 'none';
+      });
     };
 
     /**
