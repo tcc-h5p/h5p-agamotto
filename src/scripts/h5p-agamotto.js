@@ -810,18 +810,50 @@ export default class Agamotto extends H5P.Question {
      * frames.
      */
     items = items
-      .filter((item) => {
-        if (!item.image || !item.image.params || !item.image.params.file) {
-          console.warn('An image is missing. I will continue without it, but please check your settings.');
+      .filter((item, index) => {
+        if (!item || typeof item !== 'object') {
+          console.warn(`Item ${index} ignorado: não é um objeto válido.`);
           return false;
         }
+
         return true;
       })
       .splice(0, MAX_IMAGES)
       .map((item) => {
-        item.image.params.alt = item.image.params.alt || '';
-        item.image.params.title = item.image.params.title || '';
-        return item;
+        const image = item.image || {};
+          const library = image.library || '';
+          image.params = image.params || {};
+
+          if (library.includes('H5P.Image')) {
+            image.params.alt = image.params.alt || '';
+            image.params.title = image.params.title || '';
+            image.params.text = image.params.text || '';
+          }
+
+          if (library.includes('H5P.Table')) {
+            image.params.alt = image.params.alt || '';
+            image.params.title = image.params.title || '';
+            image.params.decorative = false;
+            image.params.contentName = 'Image';
+            image.params.expandImage = 'Expand Image';
+            image.params.minimizeImage = 'Minimize Image';
+
+            image.params.text = typeof image.params.text === 'string' ? image.params.text : '';
+          }
+
+          if(library.includes('H5P.OpenEndedQuestion')) {
+            image.params.alt = image.params.alt || '';
+            image.params.title = image.params.title || '';
+            image.params.placeholderText = image.params.placeholderText || '';
+            image.params.inputRows = image.params.inputRows || '1';
+            image.params.question = image.params.question || '';
+          }
+
+          image.description = image.description;
+
+          item.image = image;
+
+          return item;
       });
 
     return items;
