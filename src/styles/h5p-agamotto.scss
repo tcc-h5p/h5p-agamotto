@@ -309,3 +309,30 @@ $border-color_1: #999 transparent transparent transparent;
 	text-align: center;
 	display: block;
 }
+
+.h5p-agamotto-table {
+	margin: 64px auto;
+	background: white;
+	max-width: 100%;
+	overflow-x: auto;
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		margin: 0;
+		
+		th, td {
+			text-align: left;
+			border: 1px solid #ddd;
+		}
+		
+		th {
+			color: white;
+			font-weight: bold;
+		}
+		
+		tr:nth-child(even) {
+			background-color: #f9f9f9;
+		}
+	}
+}

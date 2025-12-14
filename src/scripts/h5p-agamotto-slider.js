@@ -82,6 +82,12 @@ export default class Slider extends H5P.EventDispatcher {
       this.container.appendChild(this.audioButton);
     }
 
+    this.updateTableContent = (index, textContent) => {
+      if (this.currentTableEl && this.currentTableEl.parentNode) {
+        this.currentTableEl.parentNode.removeChild(this.currentTableEl);
+      }
+    }
+
     this.track = document.createElement('div');
     this.track.classList.add('h5p-agamotto-slider-track');
     this.container.appendChild(this.track);
@@ -139,6 +145,7 @@ export default class Slider extends H5P.EventDispatcher {
       }
     }
 
+    this.tableContent = params.tableContent || ''
     this.timeData = params.timeData || [];
 
     this.updateTimeDisplay = (index) => {
