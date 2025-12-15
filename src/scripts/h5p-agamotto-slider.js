@@ -65,6 +65,10 @@ export default class Slider extends H5P.EventDispatcher {
     this.gridEnabled = false;
     this.gridElement = null;
 
+    this.rulerEnabled = false;
+    this.rulerElement = null;
+    this.isRulerVertical = false;
+
     this.container = document.createElement('div');
     this.container.classList.add('h5p-agamotto-slider-container');
 
@@ -557,6 +561,300 @@ export default class Slider extends H5P.EventDispatcher {
     if (this.gridElement) {
       this.gridElement.remove();
       this.gridElement = null;
+    }
+  }
+
+  /**
+   * Ruler
+   */
+  toggleRuler() {
+    this.rulerEnabled = !this.rulerEnabled;
+    
+    if (this.rulerEnabled) {
+      this.createMovableRuler();
+    } else {
+      this.removeRuler();
+    }
+    
+    this.toggleMenuPanel();
+  }
+
+  createMovableRuler() {
+    if (this.rulerElement) return;
+    
+    this.rulerElement = document.createElement('div');
+    this.rulerElement.className = 'h5p-agamotto-movable-ruler';
+    
+    this.updateRulerOrientation();
+    
+    const agamottoContainer = this.container.closest('.h5p-agamotto') || document.body;
+    agamottoContainer.style.position = 'relative';
+    agamottoContainer.appendChild(this.rulerElement);
+
+    const rotateHandle = document.createElement('div');
+    rotateHandle.classList.add('rotate-handle');
+    
+    this.setupRulerInteractions();
+  }
+
+  measurePixelsPerCm() {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = '-1000px';
+    div.style.top = '-1000px';
+    div.style.width = '1cm';
+    div.style.height = '1cm';
+    document.body.appendChild(div);
+
+    const pixels = div.getBoundingClientRect().width;
+    document.body.removeChild(div);
+    return pixels;
+  }
+
+
+  updateRulerOrientation() {
+    if (!this.rulerElement) return;
+
+    const pixelsPerCm = this.measurePixelsPerCm();
+    const length = 500;
+
+    if (this.isRulerVertical) {
+      this.rulerElement.style.width = '24px';
+      this.rulerElement.style.height = length + 'px';
+      this.rulerElement.style.transform = 'rotate(0deg)';
+
+      this.rulerElement.innerHTML = '';
+      for (let cm = 0; cm <= Math.floor(length / pixelsPerCm); cm++) {
+        const tickPosition = Math.round(cm * pixelsPerCm);
+        const tick = document.createElement('div');
+        tick.style.cssText = `
+          position: absolute;
+          top: ${tickPosition}px;
+          left: 0;
+          width: 8px;
+          height: 1px;
+          background: white;
+        `;
+        this.rulerElement.appendChild(tick);
+
+        if (cm % 5 === 0) {
+          const labelPosition = Math.round(tickPosition - 8);
+          const label = document.createElement('div');
+          label.textContent = cm;
+          label.style.cssText = `
+            position: absolute;
+            top: ${labelPosition}px;
+            left: 12px;
+            color: white;
+            font-size: 12px;
+            transform: rotate(-90deg);
+            transform-origin: left top;
+          `;
+          this.rulerElement.appendChild(label);
+        }
+      }
+    } else {
+      this.rulerElement.style.width = length + 'px';
+      this.rulerElement.style.height = '24px';
+      this.rulerElement.style.transform = 'rotate(0deg)';
+
+      this.rulerElement.innerHTML = '';
+      for (let cm = 0; cm <= Math.floor(length / pixelsPerCm); cm++) {
+        const tickPosition = Math.round(cm * pixelsPerCm);
+        const tick = document.createElement('div');
+        tick.style.cssText = `
+          position: absolute;
+          left: ${tickPosition}px;
+          top: 0;
+          width: 1px;
+          height: 8px;
+          background: white;
+        `;
+        this.rulerElement.appendChild(tick);
+
+        if (cm % 5 === 0) {
+          const labelPosition = Math.round(tickPosition + 2);
+          const label = document.createElement('div');
+          label.textContent = cm;
+          label.style.cssText = `
+            position: absolute;
+            left: ${labelPosition}px;
+            top: 10px;
+            color: white;
+            font-size: 10px;
+          `;
+          this.rulerElement.appendChild(label);
+        }
+      }
+    }
+  }
+
+  setupRulerInteractions() {
+    let isDragging = false;
+    let isRotating = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let rulerStartX = 0;
+    let rulerStartY = 0;
+    let rotationStart = 0;
+
+    const rotateHandle = document.createElement('div');
+    rotateHandle.classList.add('rotate-handle');
+    this.rulerElement.appendChild(rotateHandle);
+
+    this.angleDisplay = document.createElement('div');
+    this.angleDisplay.classList.add('ruler-angle');
+    this.angleDisplay.textContent = '0°';
+    this.rulerElement.appendChild(this.angleDisplay);
+
+    this.rulerElement.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target === rotateHandle) return;
+
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+
+      const rect = this.rulerElement.getBoundingClientRect();
+      rulerStartX = rect.left;
+      rulerStartY = rect.top;
+
+      this.rulerElement.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    rotateHandle.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      isRotating = true;
+
+      const rect = this.rulerElement.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const currentAngle = parseFloat(this.rulerElement.dataset.rotation || '0');
+      const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      rotationStart = angle - (currentAngle * Math.PI / 180);
+    });
+
+    const mouseMoveHandler = (e) => {
+      if (isDragging) {
+        const deltaX = e.clientX - dragStartX;
+        const deltaY = e.clientY - dragStartY;
+
+        const container = this.rulerElement.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        const rulerRect = this.rulerElement.getBoundingClientRect();
+
+        let newX = rulerStartX + deltaX - containerRect.left;
+        let newY = rulerStartY + deltaY - containerRect.top;
+
+        newX = Math.max(0, Math.min(newX, containerRect.width - rulerRect.width));
+        newY = Math.max(0, Math.min(newY, containerRect.height - rulerRect.height));
+
+        this.rulerElement.style.left = `${newX}px`;
+        this.rulerElement.style.top = `${newY}px`;
+      }
+
+      if (isRotating) {
+        const rect = this.rulerElement.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) - rotationStart;
+        const degrees = angle * (180 / Math.PI);
+
+        this.rulerElement.style.transform = `rotate(${degrees}deg)`;
+        this.rulerElement.dataset.rotation = degrees.toFixed(2);
+        this.angleDisplay.textContent = `${degrees.toFixed(1)}°`;
+      }
+    };
+
+    const mouseUpHandler = () => {
+      if (isDragging) {
+        isDragging = false;
+        this.rulerElement.style.cursor = 'move';
+      }
+      if (isRotating) {
+        isRotating = false;
+      }
+    };
+
+    document.addEventListener('mousemove', mouseMoveHandler);
+    document.addEventListener('mouseup', mouseUpHandler);
+
+    this.rulerElement.cleanup = () => {
+      document.removeEventListener('mousemove', mouseMoveHandler);
+      document.removeEventListener('mouseup', mouseUpHandler);
+    };
+  }
+
+  removeRuler() {
+    if (this.rulerElement) {
+      if (this.rulerElement.cleanup) {
+        this.rulerElement.cleanup();
+      }
+      this.rulerElement.remove();
+      this.rulerElement = null;
+    }
+  }
+
+  drawRulerTicks() {
+    if (!this.rulerElement) return;
+    
+    this.rulerElement.innerHTML = '';
+    
+    const rulerWidth = this.rulerElement.parentElement.clientWidth;
+    const pixelsPerCm = 37.8; // Aproximadamente 37.8 pixels por cm em 96 DPI
+    
+    for (let cm = 0; cm <= Math.ceil(rulerWidth / pixelsPerCm); cm++) {
+      const tick = document.createElement('div');
+      tick.style.cssText = `
+        position: absolute;
+        left: ${cm * pixelsPerCm}px;
+        top: 0;
+        width: 1px;
+        height: 10px;
+        background: white;
+      `;
+      this.rulerElement.appendChild(tick);
+      
+      if (cm % 5 === 0) {
+        const label = document.createElement('div');
+        label.textContent = cm;
+        label.style.cssText = `
+          position: absolute;
+          left: ${cm * pixelsPerCm + 2}px;
+          top: 10px;
+          color: white;
+          font-size: 8px;
+          white-space: nowrap;
+        `;
+        this.rulerElement.appendChild(label);
+      }
+    }
+  }
+
+  /**
+   * Update ruler position 
+   */
+  updateRulerPosition() {
+    if (this.rulerElement && this.rulerEnabled) {
+      const agamottoContainer = this.container.closest('.h5p-agamotto');
+      if (agamottoContainer) {
+        this.rulerElement.style.width = agamottoContainer.clientWidth + 'px';
+        this.drawRulerTicks();
+      }
+    }
+  }
+
+  /**
+   * Remove ruler
+   */
+  removeRuler() {
+    if (this.rulerElement) {
+      this.rulerElement.remove();
+      this.rulerElement = null;
     }
   }
 
