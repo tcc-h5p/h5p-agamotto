@@ -369,6 +369,161 @@ export default class Slider extends H5P.EventDispatcher {
   }
 
   /**
+   * 
+   * Show export options in menu
+   */
+  showExportOptions() {
+    let exportOptions = this.menuPanel.querySelector('.export-options');
+
+    if (exportOptions) {
+      exportOptions.classList.toggle('open');
+      return;
+    }
+
+    exportOptions = document.createElement('div');
+    exportOptions.classList.add('export-options');
+
+    const exportTypes = [
+      { label: 'Texto (.txt)', format: 'text' },
+      { label: 'CSV (.csv)', format: 'csv' },
+      { label: 'HTML (.html)', format: 'html' }
+    ];
+
+    exportTypes.forEach(type => {
+      const optionBtn = document.createElement('button');
+      optionBtn.classList.add('h5p-agamotto-slider-menu-item');
+      optionBtn.textContent = type.label;
+
+      optionBtn.addEventListener('click', () => {
+        this.exportTable(type.format);
+        exportOptions.classList.remove('open');
+      });
+
+      exportOptions.appendChild(optionBtn);
+    });
+
+    this.menuPanel.appendChild(exportOptions);
+    requestAnimationFrame(() => exportOptions.classList.add('open'));
+  }
+
+  exportTable(format = 'text') {
+    const currentIndex = this.getCurrentItemId();
+    const currentItem = this.parent.params.items[currentIndex];
+    const htmlContent = currentItem?.image?.params?.text;
+    
+    if (htmlContent) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      
+      const table = tempDiv.querySelector('figure.table table') || tempDiv.querySelector('table');
+      
+      if (table) {
+        const tableData = [];        
+        const allRows = table.querySelectorAll('tr');
+        
+        allRows.forEach(row => {
+          const cells = row.querySelectorAll('th, td');
+          const rowData = [];
+          
+          cells.forEach(cell => {
+            const cellText = (cell.textContent || cell.innerText || '').replace(/\s+/g, ' ').trim();
+            rowData.push(cellText);
+          });
+          
+          if (rowData.length > 0) {
+            tableData.push(rowData);
+          }
+        });
+        
+        if (tableData.length === 0) {
+          alert('Tabela vazia.');
+          return;
+        }
+        
+        let content = '';
+        let mimeType = '';
+        let fileExtension = '';
+        
+        switch (format) {
+          case 'csv':
+            const csvRows = tableData.map(row => {
+              return row.map(cell => {
+                if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+                  return `"${cell.replace(/"/g, '""')}"`;
+                }
+                return cell;
+              }).join(',');
+            });
+            content = csvRows.join('\n');
+            mimeType = 'text/csv;charset=utf-8';
+            fileExtension = 'csv';
+            break;
+            
+          case 'html':
+            let htmlContent = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <title>Tabela - Slide ${currentIndex + 1}</title>
+                <style>
+                  table { border-collapse: collapse; width: 100%; }
+                  th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+                  th { background-color: #f2f2f2; }
+                </style>
+              </head>
+              <body>
+                <h1>Tabela - Slide ${currentIndex + 1}</h1>
+                <table>
+            `;
+            
+            tableData.forEach((row, rowIndex) => {
+              htmlContent += '<tr>';
+              row.forEach(cell => {
+                const tag = rowIndex === 0 ? 'th' : 'td';
+                htmlContent += `<${tag}>${cell}</${tag}>`;
+              });
+              htmlContent += '</tr>';
+            });
+            
+            htmlContent += `
+                </table>
+              </body>
+              </html>
+            `;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            return;
+            
+          case 'text':
+          default:
+            const textRows = tableData.map(row => row.join('\t'));
+            content = textRows.join('\n');
+            mimeType = 'text/plain;charset=utf-8';
+            fileExtension = 'txt';
+        }
+        
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tabela_slide_${currentIndex + 1}.${fileExtension}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        alert('Nenhuma tabela encontrada neste slide.');
+      }
+    } else {
+      alert('Nenhum conteúdo encontrado neste slide.');
+    }
+    this.toggleMenuPanel();
+  }
+
+  /**
    * Remove fullscreen button.
    */
   removeFullscreenButton() {
