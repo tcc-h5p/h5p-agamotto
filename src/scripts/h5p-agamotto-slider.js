@@ -88,6 +88,64 @@ export default class Slider extends H5P.EventDispatcher {
       }
     }
 
+    this.menuButton = document.createElement('button');
+    this.menuButton.classList.add('h5p-agamotto-slider-menu');
+    this.menuButton.setAttribute('tabindex', 0);
+    this.menuButton.setAttribute('aria-label', 'Abrir menu lateral');
+    this.menuButton.innerHTML = '☰';
+
+    this.menuButton.addEventListener('click', (event) => {
+      event.preventDefault(); 
+      console.log('Menu panel:', this.menuPanel);
+      this.toggleMenuPanel();
+    });
+
+    this.container.appendChild(this.menuButton);
+
+    this.menuPanel = document.createElement('div');
+    this.menuPanel.classList.add('h5p-agamotto-slider-menu-panel');
+
+    const menuItems = [
+      { label: 'Mostrar Régua', action: 'toggleRuler' },
+      { label: 'Mostrar Quadriculado', action: 'toggleGrid' },
+      { label: 'Habilitar Zoom', action: 'setZoom', value: 0.5 },
+      { label: 'Redefinir Zoom', action: 'resetZoom' },
+      { label: 'Exportar Tabela', action: 'showExportOptions' },
+      { label: 'Exportar Perguntas e Respostas', action: 'exportQuestions' },
+      { label: 'Exportar Tudo', action: 'exportAll' } 
+    ];
+
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('button');
+      menuItem.classList.add('h5p-agamotto-slider-menu-item');
+      menuItem.textContent = item.label;
+
+      menuItem.addEventListener('click', () => {
+        if (item.action === 'toggleRuler') {
+          this.toggleRuler();
+          menuItem.textContent = this.rulerEnabled
+            ? 'Esconder Régua'
+            : 'Mostrar Régua';
+        }
+        if (item.action === 'toggleGrid') {
+          this.toggleGrid();
+          menuItem.textContent = this.gridEnabled
+          ? 'Esconder Quadriculado'
+          : 'Mostrar Quadriculado';
+        }
+        if (item.action == 'showExportOptions') this.showExportOptions();
+        if (item.action === 'exportQuestions') this.exportQuestions();
+        if (item.action == 'exportAll') this.exportAll();
+        if (item.action === 'setZoom') this.setZoom(item.value);
+        if (item.action === 'resetZoom') this.resetZoom();
+    
+      });
+
+      this.menuPanel.appendChild(menuItem);
+    });
+
+    this.container.appendChild(this.menuPanel);
+
     this.track = document.createElement('div');
     this.track.classList.add('h5p-agamotto-slider-track');
     this.container.appendChild(this.track);
@@ -422,6 +480,20 @@ export default class Slider extends H5P.EventDispatcher {
   enable() {
     this.track.classList.remove('h5p-agamotto-disabled');
     this.thumb.classList.remove('h5p-agamotto-disabled');
+  }
+
+  /**
+   * Open menu
+   */
+  toggleMenuPanel() {
+    this.menuPanel.classList.toggle('open');
+
+    if (!this.menuPanel.classList.contains('open')) {
+      const exportOptions = this.menuPanel.querySelector('.export-options');
+      if (exportOptions) {
+        exportOptions.classList.remove('open');
+      }
+    }
   }
 
   /**
