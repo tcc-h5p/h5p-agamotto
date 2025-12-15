@@ -62,6 +62,9 @@ export default class Slider extends H5P.EventDispatcher {
     this.interactionstarted = false;
     this.extraInitResizes = 1;
 
+    this.gridEnabled = false;
+    this.gridElement = null;
+
     this.container = document.createElement('div');
     this.container.classList.add('h5p-agamotto-slider-container');
 
@@ -493,6 +496,67 @@ export default class Slider extends H5P.EventDispatcher {
       if (exportOptions) {
         exportOptions.classList.remove('open');
       }
+    }
+  }
+
+  /**
+   * Grid
+   */
+  toggleGrid() {
+    this.gridEnabled = !this.gridEnabled;
+    
+    if (this.gridEnabled) {
+      this.createGrid();
+      this.updateGridSize();
+    } else {
+      this.removeGrid();
+    }
+    
+    this.toggleMenuPanel();
+  }
+
+  /**
+   * 
+   * Create Grid
+   */
+  createGrid() {
+    if (this.gridElement) return;
+    
+    this.gridElement = document.createElement('div');
+    this.gridElement.className = 'h5p-agamotto-grid';
+    this.gridElement.classList.add('h5p-agamotto-grid')
+
+    const dpi = window.devicePixelRatio * 96;
+
+    const pxPerMM = dpi / 25.4;
+    document.documentElement.style.setProperty('--mm', `${pxPerMM}px`);
+    document.documentElement.style.setProperty('--cm', `${pxPerMM * 10}px`);
+    
+    const agamottoContainer = this.container.closest('.h5p-agamotto') || document.body;
+    agamottoContainer.style.position = 'relative';
+    agamottoContainer.appendChild(this.gridElement);
+  }
+
+  /**
+   * Update grid size 
+   */
+  updateGridSize() {
+    if (this.gridElement && this.gridEnabled) {
+      const agamottoContainer = this.container.closest('.h5p-agamotto');
+      if (agamottoContainer) {
+        this.gridElement.style.width = agamottoContainer.offsetWidth + 'px';
+        this.gridElement.style.height = agamottoContainer.offsetHeight + 'px';
+      }
+    }
+  }
+
+  /**
+   * Remove grid
+   */
+  removeGrid() {
+    if (this.gridElement) {
+      this.gridElement.remove();
+      this.gridElement = null;
     }
   }
 

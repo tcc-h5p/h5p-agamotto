@@ -87,7 +87,7 @@ $breakpoint-xl: 1200px;
 			bottom: 16px;
 			left: 16px;
 			position: absolute;
-			z-index: 1;
+			z-index: 3;
 		}
 
     .h5p-agamotto-slider-track.h5p-agamotto-disabled {
@@ -207,6 +207,7 @@ $breakpoint-xl: 1200px;
 			margin-left: auto;
 			margin-right: auto;
 			position: relative;
+			z-index: 3;
 		}
 	}
 
@@ -506,3 +507,29 @@ $breakpoint-xl: 1200px;
       }
     }
 }
+
+.h5p-agamotto-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+
+  background-image:
+    /* 1 cm */
+    linear-gradient(to right, rgba(255,255,255,0.30) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.30) 1px, transparent 1px),
+
+    /* 1 mm */
+    linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px);
+
+   background-size:
+	var(--cm) var(--cm),
+	var(--cm) var(--cm),
+	var(--mm) var(--mm),
+	var(--mm) var(--mm);
+
+  pointer-events: none;
+  z-index: 2;
+}
+
