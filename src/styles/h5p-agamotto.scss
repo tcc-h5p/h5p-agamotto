@@ -59,6 +59,15 @@ $breakpoint-xl: 1200px;
   }
 }
 
+@keyframes h5p-agamotto-spinner {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
 .h5p-agamotto {
 	width: auto;
 	margin: 0 auto;
