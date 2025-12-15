@@ -524,6 +524,47 @@ export default class Slider extends H5P.EventDispatcher {
   }
 
   /**
+   * Export questions 
+   */
+  exportQuestions() {
+    const items = this.parent.params.items;
+    let content = 'Perguntas e Respostas\n==================\n\n';
+
+    items.forEach((item, index) => {
+      const lib = item?.image?.library || '';
+      if (lib.includes('H5P.OpenEndedQuestion')) {
+        const questionText = item.image.params.question || 'Pergunta não disponível';
+        let answer = 'Não respondida';
+
+        if (this.parent.questionInstances && this.parent.questionInstances[index]) {
+          answer = this.parent.questionInstances[index].getCurrentState() || 'Não respondida';
+        }
+
+        content += `Pergunta ${index + 1}:\n${questionText}\nResposta:\n${answer}\n\n---\n\n`;
+      }
+    });
+
+    if (content.includes('Pergunta')) {
+      this.downloadTextFile(content, 'perguntas_respostas.txt');
+    } else {
+      alert('Nenhuma pergunta encontrada.');
+    }
+    this.toggleMenuPanel();
+  }
+
+  downloadTextFile(content, filename) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
    * Remove fullscreen button.
    */
   removeFullscreenButton() {
