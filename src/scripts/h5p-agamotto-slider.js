@@ -216,34 +216,28 @@ export default class Slider extends H5P.EventDispatcher {
     this.updateTimeDisplay = (index) => {
       const entry = this.timeData?.[index];
 
-      if (!entry) {
-        this.timeText.innerText = '';
+      document.querySelectorAll('.h5p-agamotto-time-panel').forEach(panel => panel.remove());
+
+      if (!entry?.enabled || this.params.contentType[index] !== 'image') {
         return;
       }
 
-      if (entry.enabled) {
-        if (!false) {
-          document.querySelectorAll('.h5p-agamotto-time-panel').forEach(panel => panel.remove());
-          this.timePanel = document.createElement('div');
-          this.timePanel.classList.add('h5p-agamotto-time-panel');
+      this.timePanel = document.createElement('div');
+      this.timePanel.classList.add('h5p-agamotto-time-panel');
 
-          this.timeText = document.createElement('div');
-          this.timeText.classList.add('h5p-agamotto-time-item');
-          this.timePanel.appendChild(this.timeText);
+      this.timeText = document.createElement('div');
+      this.timeText.classList.add('h5p-agamotto-time-item');
+      this.timePanel.appendChild(this.timeText);
 
-          const imageIndices = this.params.contentType
-            .map((isTable, i) => isTable == 'image' ? i : -1)
-            .filter(i => i !== -1);
+      const imageIndices = this.params.contentType
+        .map((type, i) => type === 'image' ? i : -1)
+        .filter(i => i !== -1);
 
-          const imageIndex = imageIndices.indexOf(index);
-          const start = entry.start + (entry.delta * imageIndex);
+      const imageIndex = imageIndices.indexOf(index);
+      const start = entry.start + (entry.delta * imageIndex);
 
-          this.timeText.innerText = `${start.toFixed(3)} ${entry.unit}`;
-          this.container.appendChild(this.timePanel);
-        } else {
-          document.querySelectorAll('.h5p-agamotto-time-panel').forEach(panel => panel.remove());
-        }
-      }
+      this.timeText.innerText = `${start.toFixed(3)} ${entry.unit}`;
+      this.container.appendChild(this.timePanel);
     };
     
     // Event Listeners for Mouse Interface
