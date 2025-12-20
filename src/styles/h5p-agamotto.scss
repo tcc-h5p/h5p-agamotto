@@ -532,84 +532,102 @@ $breakpoint-xl: 1200px;
   z-index: 2;
 }
 
-.h5p-agamotto-ruler {
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-
 .h5p-agamotto-movable-ruler {
-	position: absolute;
-	background: linear-gradient(135deg, #2c2c2c, #3a3a3a);
-	border: 1px solid rgba(255, 255, 255, 0.15);
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-	border-radius: 6px;
-	color: #fff;
-	padding: 10px;
-	font-family: 'Roboto Mono', monospace;
-	user-select: none;
-	z-index: 1000;
-	pointer-events: auto;
-	cursor: move;
-	transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.h5p-agamotto-ruler-tick {
   position: absolute;
-  background: white;
-}
+  top: 0;
+  left: 0;
+  transform-origin: center;
+  background: linear-gradient(135deg, #2c2c2c, #3a3a3a);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #fff;
+  font-family: 'Roboto Mono', monospace;
+  user-select: none;
+  z-index: 1000;
+  pointer-events: auto;
+  cursor: move;
+  transition: box-shadow 0.2s ease;
 
-.h5p-agamotto-ruler-label {
-  position: absolute;
-  color: white;
-  font-size: 10px;
+  &.dragging {
+    cursor: grabbing !important;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+  }
+
+  .ruler-ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .ruler-tick {
+    position: absolute;
+    background: white;
+    width: 1px;
+    height: 8px;
+
+    .vertical & {
+      width: 8px;
+      height: 1px;
+    }
+  }
+
+  .ruler-label {
+    position: absolute;
+    color: white;
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+
+    .vertical & {
+      transform: rotate(-90deg);
+      transform-origin: left top;
+    }
+  }
 }
 
 .rotate-handle {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 3px solid #000;
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  z-index: 1001;
+
+  &:hover { transform: translateY(-50%) scale(1.1); }
+  &:active { transform: translateY(-50%) scale(0.95); cursor: grabbing; }
+
+  &::before {
+    content: '';
     position: absolute;
-    right: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    background-color: white;
-    border: 3px solid #000;
+    inset: -3px;
+    border: 2px solid rgba(122, 179, 31, 0.3);
     border-radius: 50%;
-    cursor: grab;
-    box-shadow: $box-shadow-lg;
-    z-index: 1000;
-
-    &:hover {
-      transform: translateY(-50%) scale(1.1);
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
-    }
-
-    &:active {
-      cursor: grabbing;
-      transform: translateY(-50%) scale(0.95);
-    }
-
-    &::before {
-      content: '';
-      position: absolute;
-      inset: -3px;
-      border: 2px solid rgba(#7ab31f, 0.3);
-      border-radius: 50%;
-      animation: pulse-ring 1.5s ease-in-out infinite;
-    }
+    animation: pulse-ring 1.5s infinite;
+  }
 }
 
 .ruler-angle {
   position: absolute;
-  bottom: -1.75rem;
+  bottom: -28px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
+  background: rgba(0,0,0,0.8);
   color: white;
-  margin-top: 20px;
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
+  font-weight: 700;
   font-size: 0.75rem;
-  font-family: "Courier New", monospace;
+  font-family: 'Courier New';
   white-space: nowrap;
   pointer-events: none;
-  font-weight: 700;
+}
+
+@keyframes pulse-ring {
+  to { transform: scale(2); opacity: 0; }
 }

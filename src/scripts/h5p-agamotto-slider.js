@@ -116,7 +116,7 @@ export default class Slider extends H5P.EventDispatcher {
       { label: 'Mostrar Régua', action: 'toggleRuler' },
       { label: 'Mostrar Quadriculado', action: 'toggleGrid' },
       { label: 'Habilitar Zoom', action: 'setZoom', value: 0.5 },
-      { label: 'Redefinir Zoom', action: 'resetZoom' },
+      { label: 'Calibrar', action: 'calibrate' },
       { label: 'Exportar Tabela', action: 'showExportOptions' },
       { label: 'Exportar Perguntas e Respostas', action: 'exportQuestions' },
       { label: 'Exportar Tudo', action: 'exportAll' } 
@@ -145,6 +145,7 @@ export default class Slider extends H5P.EventDispatcher {
         if (item.action == 'exportAll') this.exportAll();
         if (item.action === 'setZoom') this.setZoom(item.value);
         if (item.action === 'resetZoom') this.resetZoom();
+        if (item.action === 'calibrate') this.calibrateRuler();
     
       });
 
@@ -691,6 +692,11 @@ export default class Slider extends H5P.EventDispatcher {
         exportOptions.classList.remove('open');
       }
     }
+
+    if (this.calibrationDiv) {
+      document.body.removeChild(this.calibrationDiv);
+      this.calibrationDiv = null;
+    }
   }
 
   /**
@@ -757,216 +763,218 @@ export default class Slider extends H5P.EventDispatcher {
   /**
    * Ruler
    */
+
   toggleRuler() {
     this.rulerEnabled = !this.rulerEnabled;
-    
+
     if (this.rulerEnabled) {
       this.createMovableRuler();
     } else {
       this.removeRuler();
     }
-    
+
     this.toggleMenuPanel();
   }
 
+  /**
+   * Create movable ruler
+   */
   createMovableRuler() {
     if (this.rulerElement) return;
-    
+
     this.rulerElement = document.createElement('div');
     this.rulerElement.className = 'h5p-agamotto-movable-ruler';
-    
-    this.updateRulerOrientation();
-    
-    const agamottoContainer = this.container.closest('.h5p-agamotto') || document.body;
-    agamottoContainer.style.position = 'relative';
-    agamottoContainer.appendChild(this.rulerElement);
+    this.rulerElement.dataset.rotation = '0';
+
+    // Load saved calibration or use default
+    this.pixelsPerCm = parseFloat(localStorage.getItem('rulerPixelsPerCm')) || 37.8;
 
     const rotateHandle = document.createElement('div');
-    rotateHandle.classList.add('rotate-handle');
-    
+    rotateHandle.className = 'rotate-handle';
+    this.rulerElement.appendChild(rotateHandle);
+
+    const angleDisplay = document.createElement('div');
+    angleDisplay.className = 'ruler-angle';
+    angleDisplay.textContent = '0°';
+    this.rulerElement.appendChild(angleDisplay);
+
+    const agamottoContainer = this.container.closest('.h5p-agamotto') || document.body;
+    if (window.getComputedStyle(agamottoContainer).position === 'static') {
+      agamottoContainer.style.position = 'relative';
+    }
+    agamottoContainer.appendChild(this.rulerElement);
+
+    this.updateRulerOrientation(600);
+    this.setPositionInContainer();
     this.setupRulerInteractions();
   }
 
-  measurePixelsPerCm() {
-    const div = document.createElement('div');
-    div.style.position = 'absolute';
-    div.style.left = '-1000px';
-    div.style.top = '-1000px';
-    div.style.width = '1cm';
-    div.style.height = '1cm';
-    document.body.appendChild(div);
+  /**
+   * Set position in container
+   * Positions the ruler at the container's bottom-right corner
+   */
+  setPositionInContainer() {
+    const parent = this.rulerElement.parentElement;
+    const parentRect = parent.getBoundingClientRect();
+    const rulerRect = this.rulerElement.getBoundingClientRect();
 
-    const pixels = div.getBoundingClientRect().width;
-    document.body.removeChild(div);
-    return pixels;
+    const x = parentRect.width - rulerRect.width;
+    const y = parentRect.height - rulerRect.height;
+
+    this.translateX = Math.max(0, x);
+    this.translateY = Math.max(0, y);
+    this.updateTransform();
   }
 
+  /**
+   * Update transform
+   * Updates the complete transform (position and rotation)
+   */
+  updateTransform() {
+    const angle = parseFloat(this.rulerElement.dataset.rotation) || 0;
+    this.rulerElement.style.transform = `translate(${this.translateX}px, ${this.translateY}px) rotate(${angle}deg)`;
+  }
 
-  updateRulerOrientation() {
+  /**
+   * Update ruler orientation
+   * Updates the ruler ticks based on calibrated pixels
+   * @param {number} length
+   */
+  updateRulerOrientation(length = 600) {
     if (!this.rulerElement) return;
 
-    const pixelsPerCm = this.measurePixelsPerCm();
-    const length = 500;
+    const pixelsPerCm = this.pixelsPerCm;
+    const maxCm = Math.floor(length / pixelsPerCm);
+
+    const content = this.rulerElement.querySelector('.ruler-ticks');
+    if (content) content.remove();
+
+    const tickContainer = document.createElement('div');
+    tickContainer.className = 'ruler-ticks';
+    this.rulerElement.appendChild(tickContainer);
 
     if (this.isRulerVertical) {
-      this.rulerElement.style.width = '24px';
+      this.rulerElement.style.width = '45px';
       this.rulerElement.style.height = length + 'px';
-      this.rulerElement.style.transform = 'rotate(0deg)';
 
-      this.rulerElement.innerHTML = '';
-      for (let cm = 0; cm <= Math.floor(length / pixelsPerCm); cm++) {
-        const tickPosition = Math.round(cm * pixelsPerCm);
+      for (let cm = 0; cm <= maxCm; cm++) {
+        const pos = Math.round(cm * pixelsPerCm);
+
         const tick = document.createElement('div');
-        tick.style.cssText = `
-          position: absolute;
-          top: ${tickPosition}px;
-          left: 0;
-          width: 8px;
-          height: 1px;
-          background: white;
-        `;
-        this.rulerElement.appendChild(tick);
+        tick.className = 'ruler-tick';
+        tick.style.top = pos + 'px';
+        tickContainer.appendChild(tick);
 
         if (cm % 5 === 0) {
-          const labelPosition = Math.round(tickPosition - 8);
           const label = document.createElement('div');
+          label.className = 'ruler-label';
           label.textContent = cm;
-          label.style.cssText = `
-            position: absolute;
-            top: ${labelPosition}px;
-            left: 12px;
-            color: white;
-            font-size: 12px;
-            transform: rotate(-90deg);
-            transform-origin: left top;
-          `;
-          this.rulerElement.appendChild(label);
+          label.style.top = (pos - 8) + 'px';
+          label.style.left = '12px';
+          tickContainer.appendChild(label);
         }
       }
     } else {
       this.rulerElement.style.width = length + 'px';
-      this.rulerElement.style.height = '24px';
-      this.rulerElement.style.transform = 'rotate(0deg)';
+      this.rulerElement.style.height = '45px';
 
-      this.rulerElement.innerHTML = '';
-      for (let cm = 0; cm <= Math.floor(length / pixelsPerCm); cm++) {
-        const tickPosition = Math.round(cm * pixelsPerCm);
+      for (let cm = 0; cm <= maxCm; cm++) {
+        const pos = Math.round(cm * pixelsPerCm);
+
         const tick = document.createElement('div');
-        tick.style.cssText = `
-          position: absolute;
-          left: ${tickPosition}px;
-          top: 0;
-          width: 1px;
-          height: 8px;
-          background: white;
-        `;
-        this.rulerElement.appendChild(tick);
+        tick.className = 'ruler-tick';
+        tick.style.left = pos + 'px';
+        tickContainer.appendChild(tick);
 
         if (cm % 5 === 0) {
-          const labelPosition = Math.round(tickPosition + 2);
           const label = document.createElement('div');
+          label.className = 'ruler-label';
           label.textContent = cm;
-          label.style.cssText = `
-            position: absolute;
-            left: ${labelPosition}px;
-            top: 10px;
-            color: white;
-            font-size: 10px;
-          `;
-          this.rulerElement.appendChild(label);
+          label.style.left = (pos + 2) + 'px';
+          label.style.top = '10px';
+          tickContainer.appendChild(label);
         }
       }
     }
   }
 
+  /**
+   * Setup ruler interactions 
+   */
   setupRulerInteractions() {
-    let isDragging = false;
-    let isRotating = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let rulerStartX = 0;
-    let rulerStartY = 0;
-    let rotationStart = 0;
-
-    const rotateHandle = document.createElement('div');
-    rotateHandle.classList.add('rotate-handle');
-    this.rulerElement.appendChild(rotateHandle);
-
-    this.angleDisplay = document.createElement('div');
-    this.angleDisplay.classList.add('ruler-angle');
-    this.angleDisplay.textContent = '0°';
-    this.rulerElement.appendChild(this.angleDisplay);
+    const rotateHandle = this.rulerElement.querySelector('.rotate-handle');
+    const angleDisplay = this.rulerElement.querySelector('.ruler-angle');
 
     this.rulerElement.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
-      if (e.target === rotateHandle) return;
-
-      isDragging = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-
-      const rect = this.rulerElement.getBoundingClientRect();
-      rulerStartX = rect.left;
-      rulerStartY = rect.top;
-
-      this.rulerElement.style.cursor = 'grabbing';
+      if (e.button !== 0 || e.target === rotateHandle) return;
       e.preventDefault();
+      this.isDragging = true;
+
+      const rulerRect = this.rulerElement.getBoundingClientRect();
+      const centerX = rulerRect.left + rulerRect.width / 2;
+      const centerY = rulerRect.top + rulerRect.height / 2;
+
+      this.dragOffsetX = e.clientX - centerX;
+      this.dragOffsetY = e.clientY - centerY;
+
+      this.rulerElement.classList.add('dragging');
     });
 
     rotateHandle.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
-      isRotating = true;
+      e.stopPropagation();
+      this.isRotating = true;
 
-      const rect = this.rulerElement.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      const rulerRect = this.rulerElement.getBoundingClientRect();
+      this.rotationCenterX = rulerRect.left + rulerRect.width / 2;
+      this.rotationCenterY = rulerRect.top + rulerRect.height / 2;
 
-      const currentAngle = parseFloat(this.rulerElement.dataset.rotation || '0');
-      const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-      rotationStart = angle - (currentAngle * Math.PI / 180);
+      const currentAngleDeg = parseFloat(this.rulerElement.dataset.rotation) || 0;
+      const currentAngleRad = (currentAngleDeg * Math.PI) / 180;
+      const startMouseAngle = Math.atan2(e.clientY - this.rotationCenterY, e.clientX - this.rotationCenterX);
+      this.rotationStartOffset = startMouseAngle - currentAngleRad;
     });
 
     const mouseMoveHandler = (e) => {
-      if (isDragging) {
-        const deltaX = e.clientX - dragStartX;
-        const deltaY = e.clientY - dragStartY;
+      if (this.isDragging) {
+        const parent = this.rulerElement.parentElement;
+        const parentRect = parent.getBoundingClientRect();
 
-        const container = this.rulerElement.parentElement;
-        const containerRect = container.getBoundingClientRect();
-        const rulerRect = this.rulerElement.getBoundingClientRect();
+        const targetCenterX = e.clientX - this.dragOffsetX;
+        const targetCenterY = e.clientY - this.dragOffsetY;
 
-        let newX = rulerStartX + deltaX - containerRect.left;
-        let newY = rulerStartY + deltaY - containerRect.top;
+        const rulerWidth = this.rulerElement.offsetWidth;
+        const rulerHeight = this.rulerElement.offsetHeight;
 
-        newX = Math.max(0, Math.min(newX, containerRect.width - rulerRect.width));
-        newY = Math.max(0, Math.min(newY, containerRect.height - rulerRect.height));
+        let newCenterX = targetCenterX - parentRect.left;
+        let newCenterY = targetCenterY - parentRect.top;
 
-        this.rulerElement.style.left = `${newX}px`;
-        this.rulerElement.style.top = `${newY}px`;
+        newCenterX = Math.max(rulerWidth / 2, Math.min(newCenterX, parentRect.width - rulerWidth / 2));
+        newCenterY = Math.max(rulerHeight / 2, Math.min(newCenterY, parentRect.height - rulerHeight / 2));
+
+        this.translateX = newCenterX - rulerWidth / 2;
+        this.translateY = newCenterY - rulerHeight / 2;
+        this.updateTransform();
       }
 
-      if (isRotating) {
-        const rect = this.rulerElement.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
+      if (this.isRotating) {
+        const mouseAngle = Math.atan2(e.clientY - this.rotationCenterY, e.clientX - this.rotationCenterX);
+        const newAngleDeg = ((mouseAngle - this.rotationStartOffset) * 180) / Math.PI;
 
-        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) - rotationStart;
-        const degrees = angle * (180 / Math.PI);
-
-        this.rulerElement.style.transform = `rotate(${degrees}deg)`;
-        this.rulerElement.dataset.rotation = degrees.toFixed(2);
-        this.angleDisplay.textContent = `${degrees.toFixed(1)}°`;
+        this.rulerElement.dataset.rotation = newAngleDeg.toFixed(2);
+        angleDisplay.textContent = `${newAngleDeg.toFixed(1)}°`;
+        this.updateTransform();
       }
     };
 
     const mouseUpHandler = () => {
-      if (isDragging) {
-        isDragging = false;
-        this.rulerElement.style.cursor = 'move';
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.rulerElement.classList.remove('dragging');
       }
-      if (isRotating) {
-        isRotating = false;
+      if (this.isRotating) {
+        this.isRotating = false;
       }
     };
 
@@ -979,73 +987,74 @@ export default class Slider extends H5P.EventDispatcher {
     };
   }
 
+  /**
+   * Remove ruler 
+   */
   removeRuler() {
     if (this.rulerElement) {
-      if (this.rulerElement.cleanup) {
-        this.rulerElement.cleanup();
-      }
+      if (this.rulerElement.cleanup) this.rulerElement.cleanup();
       this.rulerElement.remove();
       this.rulerElement = null;
     }
   }
 
-  drawRulerTicks() {
-    if (!this.rulerElement) return;
-    
-    this.rulerElement.innerHTML = '';
-    
-    const rulerWidth = this.rulerElement.parentElement.clientWidth;
-    const pixelsPerCm = 37.8; // Aproximadamente 37.8 pixels por cm em 96 DPI
-    
-    for (let cm = 0; cm <= Math.ceil(rulerWidth / pixelsPerCm); cm++) {
-      const tick = document.createElement('div');
-      tick.style.cssText = `
-        position: absolute;
-        left: ${cm * pixelsPerCm}px;
-        top: 0;
-        width: 1px;
-        height: 10px;
-        background: white;
-      `;
-      this.rulerElement.appendChild(tick);
-      
-      if (cm % 5 === 0) {
-        const label = document.createElement('div');
-        label.textContent = cm;
-        label.style.cssText = `
-          position: absolute;
-          left: ${cm * pixelsPerCm + 2}px;
-          top: 10px;
-          color: white;
-          font-size: 8px;
-          white-space: nowrap;
-        `;
-        this.rulerElement.appendChild(label);
-      }
-    }
+  toggleOrientation() {
+    this.isRulerVertical = !this.isRulerVertical;
+    const currentLength = this.isRulerVertical
+      ? parseFloat(this.rulerElement.style.width) || 600
+      : parseFloat(this.rulerElement.style.height) || 600;
+    this.updateRulerOrientation(currentLength);
   }
 
   /**
-   * Update ruler position 
+   * Calibrate ruler
+   * Calibration defined by the user
    */
-  updateRulerPosition() {
-    if (this.rulerElement && this.rulerEnabled) {
-      const agamottoContainer = this.container.closest('.h5p-agamotto');
-      if (agamottoContainer) {
-        this.rulerElement.style.width = agamottoContainer.clientWidth + 'px';
-        this.drawRulerTicks();
-      }
-    }
-  }
+  calibrateRuler() {
+    if (this.calibrationDiv) return;
 
-  /**
-   * Remove ruler
-   */
-  removeRuler() {
-    if (this.rulerElement) {
-      this.rulerElement.remove();
-      this.rulerElement = null;
-    }
+    this.toggleMenuPanel()
+
+    this.calibrationDiv = document.createElement('div');
+    this.calibrationDiv.innerHTML = `
+      <div style="position: fixed; top: 55px; left: 20px; background: #d1e9caff; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-family: sans-serif;">
+        <p style="margin:0 0 8px 0;"><strong>Calibrar régua</strong></p>
+        <p style="margin:0 0 10px 0;">Ajuste o controle deslizante até que a linha preta abaixo meça <strong>10 cm</strong> com uma régua física.</p>
+        <div id="calibration-line" style="width: 378px; height: 6px; background: #000; margin: 8px 0; border-radius: 3px;"></div>
+        <input type="range" id="calibration-slider" min="200" max="600" value="378" step="1" style="width: 100%;">
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button id="calibration-done" style="flex:1; background:#7ab31f; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold;">Usar</button>
+          <button id="calibration-cancel" style="flex:1; background:#ccc; border:none; padding:6px; border-radius:4px;">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(this.calibrationDiv);
+
+    const line = this.calibrationDiv.querySelector('#calibration-line');
+    const slider = this.calibrationDiv.querySelector('#calibration-slider');
+    const doneBtn = this.calibrationDiv.querySelector('#calibration-done');
+    const cancelBtn = this.calibrationDiv.querySelector('#calibration-cancel');
+
+    slider.addEventListener('input', () => {
+      line.style.width = slider.value + 'px';
+    });
+
+    const finishCalibration = (save = true) => {
+      if (save) {
+        const pixelsFor10Cm = parseFloat(slider.value);
+        this.pixelsPerCm = pixelsFor10Cm / 10;
+        localStorage.setItem('rulerPixelsPerCm', this.pixelsPerCm.toString());
+
+        if (this.rulerElement) {
+          this.updateRulerOrientation(600);
+        }
+      }
+      document.body.removeChild(this.calibrationDiv);
+      this.calibrationDiv = null;
+    };
+
+    doneBtn.addEventListener('click', () => finishCalibration(true));
+    cancelBtn.addEventListener('click', () => finishCalibration(false));
   }
 
   /**
