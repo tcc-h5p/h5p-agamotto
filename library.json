@@ -47,6 +47,16 @@
       "machineName": "H5P.Question",
       "majorVersion": 1,
       "minorVersion": 5
+    },
+    {
+      "machineName": "H5P.Table",
+      "majorVersion": 1,
+      "minorVersion": 2
+    },
+    {
+      "machineName": "H5P.OpenEndedQuestion",
+      "majorVersion": 1,
+      "minorVersion": 0
     }
   ]
 }
