@@ -233,6 +233,7 @@ $breakpoint-xl: 1200px;
 
   .h5p-agamotto-image-top {
 		position: absolute;
+		background-color: #000 !important;
 		width: 100%;
 		z-index: 1;
 	}
@@ -240,6 +241,7 @@ $breakpoint-xl: 1200px;
   .h5p-agamotto-image-bottom {
 		position: absolute;
 		width: 100%;
+		display: none;
 	}
 
   .h5p-agamotto-descriptions-container {

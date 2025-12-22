@@ -115,7 +115,8 @@ export default class Slider extends H5P.EventDispatcher {
     const menuItems = [
       { label: 'Mostrar Régua', action: 'toggleRuler' },
       { label: 'Mostrar Quadriculado', action: 'toggleGrid' },
-      { label: 'Habilitar Zoom', action: 'setZoom', value: 0.5 },
+      { label: 'Habilitar Zoom', action: 'setZoom', value: 0.2 },
+      { label: 'Redefinir Zoom', action: 'resetZoom' },
       { label: 'Calibrar', action: 'calibrate' },
       { label: 'Exportar Tabela', action: 'showExportOptions' },
       { label: 'Exportar Perguntas e Respostas', action: 'exportQuestions' },
@@ -1115,6 +1116,69 @@ export default class Slider extends H5P.EventDispatcher {
 
     doneBtn.addEventListener('click', () => finishCalibration(true));
     cancelBtn.addEventListener('click', () => finishCalibration(false));
+  }
+
+  /**
+   * Set zoom
+   * @param {number} value 
+   */
+  setZoom(value) {
+    this.currentZoom = Math.max(this.minZoom, Math.min(this.maxZoom, value));
+    this.applyZoom();
+    this.toggleMenuPanel();
+  }
+
+  /**
+   * Reset zoom 
+   */
+  resetZoom() {
+    this.currentZoom = 1.0;
+    const image = document.querySelector('.h5p-agamotto-image-top');
+    if (image) {
+      image.style.transform = 'scale(1)';
+      image.style.transformOrigin = 'center center';
+    }
+    
+    const slider = document.getElementById('zoom-slider');
+    const value = document.getElementById('zoom-value');
+    if (slider) slider.value = 100;
+    if (value) value.textContent = '100%';
+    
+    this.toggleMenuPanel();
+  }
+
+  /**
+   * Apply zoom
+   */
+  applyZoom() {
+    const imageTop = document.querySelector('.h5p-agamotto-image-top');
+    
+    if (imageTop) {
+      imageTop.style.backgroundColor = 'black';
+      let currentZoom = 1.0;
+      const minZoom = 0.5;
+      const maxZoom = 3.0;
+
+      imageTop.addEventListener('click', () => {
+        currentZoom += 0.2;
+        if (currentZoom > maxZoom) {
+          currentZoom = minZoom;
+        }
+        imageTop.style.transform = `scale(${currentZoom})`;
+        imageTop.style.transformOrigin = 'center center';
+      });
+
+      imageTop.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomIntensity = 0.1;
+        const wheel = e.deltaY;
+        const zoomFactor = Math.exp(-wheel * zoomIntensity / 100);
+        
+        currentZoom = Math.max(minZoom, Math.min(maxZoom, currentZoom * zoomFactor));
+        imageTop.style.transform = `scale(${currentZoom})`;
+        imageTop.style.transformOrigin = 'center center';
+      });
+    }
   }
 
   /**
