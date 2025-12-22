@@ -394,6 +394,20 @@ $breakpoint-xl: 1200px;
 	}
 }
 
+.export-options {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  padding-left: 2rem;
+  opacity: 0;
+  color: #fff !important;
+
+	&.open  {
+		opacity: 1;
+  		max-height: 500px;
+	}
+}
+
 .h5p-agamotto-slider-menu {
   	position: fixed !important;
 	top: 1rem !important;       

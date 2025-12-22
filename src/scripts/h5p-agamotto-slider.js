@@ -118,9 +118,9 @@ export default class Slider extends H5P.EventDispatcher {
       { label: 'Habilitar Zoom', action: 'setZoom', value: 0.2 },
       { label: 'Redefinir Zoom', action: 'resetZoom' },
       { label: 'Calibrar', action: 'calibrate' },
-      { label: 'Exportar Tabela', action: 'showExportOptions' },
+      { label: 'Exportar Tudo', action: 'exportAll' },
       { label: 'Exportar Perguntas e Respostas', action: 'exportQuestions' },
-      { label: 'Exportar Tudo', action: 'exportAll' } 
+      { label: 'Exportar Tabela', action: 'showExportOptions' }
     ];
 
     menuItems.forEach(item => {
