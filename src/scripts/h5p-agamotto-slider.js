@@ -547,6 +547,66 @@ export default class Slider extends H5P.EventDispatcher {
     this.toggleMenuPanel();
   }
 
+  /**
+   * Export all contents
+   */
+  exportAll() {
+    const items = this.parent.params.items;
+    let content = 'Exportação Completa\n=============================\n\n';
+
+    items.forEach((item, index) => {
+      const lib = item?.image?.library || '';
+      content += `Item ${index + 1}\n----------\n`;
+
+      if (lib.includes('H5P.Image')) {
+        content += 'Tipo: Imagem\n';
+        if (item.description) {
+          const temp = document.createElement('div');
+          temp.innerHTML = item.description;
+          content += `Descrição: ${temp.textContent || temp.innerText || ''}\n`;
+        }
+      }
+      else if (lib.includes('H5P.Table')) {
+        content += 'Tipo: Tabela\n';
+        const htmlContent = item.image.params.text;
+        if (htmlContent) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlContent;
+          const table = tempDiv.querySelector('table');
+          if (table) {
+            const rows = [];
+            table.querySelectorAll('tr').forEach(row => {
+              const cells = Array.from(row.querySelectorAll('th, td'))
+                .map(cell => {
+                  const text = (cell.textContent || '').trim();
+                  return `"${text.replace(/"/g, '""')}"`;
+                });
+              rows.push(cells.join('\t'));
+            });
+            content += 'Conteúdo da tabela:\n' + rows.join('\n') + '\n';
+          }
+        }
+      }
+      else if (lib.includes('H5P.OpenEndedQuestion')) {
+        content += 'Tipo: Pergunta Aberta\n';
+        const questionText = item.image.params.question || 'Pergunta não disponível';
+        let answer = 'Não respondida';
+        if (this.parent.questionInstances && this.parent.questionInstances[index]) {
+          answer = this.parent.questionInstances[index].getCurrentState() || 'Não respondida';
+        }
+        content += `Pergunta: ${questionText}\nResposta: ${answer}\n`;
+      }
+      else {
+        content += 'Tipo: Desconhecido\n';
+      }
+
+      content += '\n---\n\n';
+    });
+
+    this.downloadTextFile(content, 'agamotto_export.txt');
+    this.toggleMenuPanel();
+  }
+
   downloadTextFile(content, filename) {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
